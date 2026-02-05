@@ -1,0 +1,20 @@
+{
+  "name": "Netflix Watchlist PWA",
+  "short_name": "Watchlist",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141414",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/128/3163/3163508.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3163/3163508.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
