@@ -42,8 +42,10 @@ function takePhoto() {
   preview.style.display = 'block';
   video.style.display = 'none';
 
-  // Зупиняємо камеру
-  video.srcObject.getTracks().forEach(track => track.stop());
+  // Зупиняємо камеру (перевірка на null)
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(track => track.stop());
+  }
 
   document.getElementById('btn-take-photo').style.display = 'none';
   document.getElementById('btn-open-camera').style.display = 'inline-block';
@@ -191,10 +193,20 @@ async function refreshAppData() {
     li.className = 'movie-item';
     li.innerHTML = `
       <div class="movie-content">
+        ${!movie.watched ? '<button class="check-btn" title="Mark as watched">✔</button>' : ''}
         <span class="movie-text">${movie.title}</span>
       </div>
       <button class="delete-btn">✖</button>
     `;
+
+    if (!movie.watched) {
+      li.querySelector('.check-btn').onclick = async () => {
+        await dbPromise.update({ ...movie, watched: true });
+        vibrate([100]);
+        sendPush('Watched!', `"${movie.title}" відмічено як переглянутий.`);
+        refreshAppData();
+      };
+    }
 
     li.querySelector('.delete-btn').onclick = async () => {
       await dbPromise.delete(movie.id);
