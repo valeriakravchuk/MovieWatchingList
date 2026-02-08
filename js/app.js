@@ -102,6 +102,81 @@ function attachMovieActions(li, movie) {
   li.querySelector('.delete-btn').addEventListener('click', () => deleteMovie(movie.id));
 }
 
+// --- 3. NATIVE FUNCTIONS LOGIC ---
+
+// 1. WEB SHARE API
+async function shareMovie(title) {
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Movie Suggestion',
+        text: `Let's watch "${title}" tonight!`,
+        url: window.location.href
+      });
+    } catch (err) {
+      console.log('Share failed or cancelled');
+    }
+  } else {
+    alert("Sharing is not supported on this browser.");
+  }
+}
+
+// 2. DEVICE MOTION (SHAKE TO SHUFFLE)
+let lastShakeTime = 0;
+function initNativeFeatures() {
+  // Запит дозволів (важливо для iOS та нових Android)
+  enableNativeBtn.addEventListener('click', async () => {
+    // Для сповіщень
+    if ('Notification' in window) {
+      await Notification.requestPermission();
+    }
+
+    // Для акселерометра
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      const permission = await DeviceMotionEvent.requestPermission();
+      if (permission === 'granted') window.addEventListener('devicemotion', handleShake);
+    } else {
+      window.addEventListener('devicemotion', handleShake);
+    }
+    enableNativeBtn.style.display = 'none';
+  });
+}
+
+function handleShake(event) {
+  const acc = event.accelerationIncludingGravity;
+  if (!acc) return;
+
+  const threshold = 15; // Чутливість трусіння
+  const delta = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
+
+  if (delta > threshold) {
+    const now = Date.now();
+    if (now - lastShakeTime > 2000) { // Захист від подвійного спрацювання
+      lastShakeTime = now;
+      // Тільки якщо ми на сторінці рулетки
+      if (!document.getElementById('roulette').classList.contains('hidden-view')) {
+        startRoulette();
+      }
+    }
+  }
+}
+
+// 3. NOTIFICATIONS API
+function sendWinnerNotification(movieTitle) {
+  if (Notification.permission === 'granted') {
+    navigator.serviceWorker.ready.then(registration => {
+      registration.showNotification('Movie Roulette Winner! 🍿', {
+        body: `Tonight we are watching: ${movieTitle}`,
+        icon: 'icon192.png',
+        badge: 'icon192.png',
+        vibrate: [200, 100, 200],
+        tag: 'roulette-winner'
+      });
+    });
+  }
+}
+
+
 // --- 3. ACTIONS (CRUD) ---
 
 async function addMovie(e) {

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v7'; // Change this to invalidate old caches
+const CACHE_VERSION = 'v8'; // Change this to invalidate old caches
 const CACHE_NAMES = {
   static: `netflix-static-${CACHE_VERSION}`,
   image: `netflix-images-${CACHE_VERSION}`,
@@ -136,3 +136,11 @@ async function staleWhileRevalidate(request, cacheName) {
 
   return cachedResponse || fetchPromise;
 }
+
+// NATIVE FUNCTION: Обробка кліку на сповіщення
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.openWindow('/')
+  );
+});
