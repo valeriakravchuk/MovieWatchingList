@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   registerServiceWorker();
   setupEventListeners();
   checkStorageQuota();
-  initNativeFeatures(); // <--- ПІДКЛЮЧЕНО: ініціалізація датчиків
+  initNativeFeatures();
 });
 
 // --- UI Elements ---
@@ -24,7 +24,7 @@ const rouletteDisplay = document.getElementById('roulette-display');
 const winnerActions = document.getElementById('winner-actions');
 const winnerTitle = document.getElementById('winner-title');
 const markWinnerBtn = document.getElementById('mark-winner-watched');
-const enableNativeBtn = document.getElementById('enable-native-btn'); // <--- ДОДАНО: кнопка дозволів
+const enableNativeBtn = document.getElementById('enable-native-btn');
 let currentWinnerId = null;
 
 // --- 1. DATA FLOW FUNCTIONS ---
@@ -47,11 +47,12 @@ function sortMoviesNewestFirst(movies) {
 function handleEmptyState(movies) {
   const hasPending = movies.some(m => !m.watched);
   if (emptyState) {
-    !hasPending ? emptyState.classList.remove('hidden') : emptyState.classList.add('hidden');
+    hasPending ? emptyState.classList.add('hidden') : emptyState.classList.remove('hidden');
   }
 }
 
 function renderAllLists(movies) {
+  if (!queueList || !historyList) return;
   queueList.innerHTML = '';
   historyList.innerHTML = '';
   movies.forEach(movie => {
@@ -65,18 +66,9 @@ function renderAllLists(movies) {
 function createMovieElement(movie) {
   const li = document.createElement('li');
   li.className = `movie-item ${movie.watched ? 'watched' : ''}`;
-  li.innerHTML = buildMovieTemplate(movie);
-  attachMovieActions(li, movie);
-  return li;
-}
-
-// ТУТ МИ ДОДАЛИ КНОПКУ ЛІТАЧКА ✈
-function buildMovieTemplate(movie) {
-  const checkIcon = movie.watched ? '✔' : '';
-  const checkClass = movie.watched ? 'checked' : '';
-  return `
+  li.innerHTML = `
     <div class="movie-content">
-        <div class="check-btn ${checkClass}">${checkIcon}</div>
+        <div class="check-btn ${movie.watched ? 'checked' : ''}">${movie.watched ? '✔' : ''}</div>
         <div>
             <div class="movie-text">${escapeHtml(movie.title)}</div>
             <small class="movie-date">${new Date(movie.id).toLocaleDateString()}</small>
@@ -87,49 +79,40 @@ function buildMovieTemplate(movie) {
         <button class="delete-btn">✖</button>
     </div>
   `;
+  attachMovieActions(li, movie);
+  return li;
 }
 
 function attachMovieActions(li, movie) {
   li.querySelector('.check-btn').addEventListener('click', () => toggleStatus(movie));
   li.querySelector('.delete-btn').addEventListener('click', () => deleteMovie(movie.id));
-  li.querySelector('.share-btn').addEventListener('click', () => shareMovie(movie.title)); // <--- ПІДКЛЮЧЕНО: Share
+  li.querySelector('.share-btn').addEventListener('click', () => shareMovie(movie.title));
 }
 
-// --- 3. NATIVE FUNCTIONS LOGIC ---
+// --- 3. NATIVE FUNCTIONS ---
 
-// 1. WEB SHARE API
 async function shareMovie(title) {
   if (navigator.share) {
     try {
       await navigator.share({
-        title: 'Netflix Watchlist',
-        text: `Подивись цей фільм: "${title}"`,
+        title: 'Watchlist',
+        text: `Раджу подивитись: "${title}"`,
         url: window.location.href
       });
-    } catch (err) {
-      console.log('Share failed', err);
-    }
-  } else {
-    alert("Ваш браузер не підтримує поширення.");
-  }
+    } catch (err) { console.log('Share error', err); }
+  } else { alert("Share not supported"); }
 }
 
-// 2. DEVICE MOTION (SHAKE)
-let lastShakeTime = 0;
 function initNativeFeatures() {
   if (!enableNativeBtn) return;
   enableNativeBtn.addEventListener('click', async () => {
-    // Сповіщення
-    if ('Notification' in window) {
-      await Notification.requestPermission();
-    }
-    // Акселерометр
-    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-      const permission = await DeviceMotionEvent.requestPermission();
-      if (permission === 'granted') window.addEventListener('devicemotion', handleShake);
-    } else {
+    try {
+      if ('Notification' in window) await Notification.requestPermission();
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        await DeviceMotionEvent.requestPermission();
+      }
       window.addEventListener('devicemotion', handleShake);
-    }
+    } catch (e) { console.log("Sensors init error", e); }
     enableNativeBtn.style.display = 'none';
   });
 }
@@ -138,25 +121,23 @@ function handleShake(event) {
   const acc = event.accelerationIncludingGravity;
   if (!acc) return;
   const delta = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
-  if (delta > 15) { // Поріг трусіння
+  if (delta > 15) {
     const now = Date.now();
     if (now - lastShakeTime > 2000) {
       lastShakeTime = now;
-      const rouletteView = document.getElementById('roulette');
-      if (rouletteView && !rouletteView.classList.contains('hidden-view')) {
-        startRoulette();
-      }
+      const rView = document.getElementById('roulette');
+      if (rView && !rView.classList.contains('hidden-view')) startRoulette();
     }
   }
 }
+let lastShakeTime = 0;
 
-// 3. NOTIFICATIONS API
 function sendWinnerNotification(movieTitle) {
   if (Notification.permission === 'granted') {
     navigator.serviceWorker.ready.then(reg => {
-      reg.showNotification('Фільм на вечір обрано! 🍿', {
+      reg.showNotification('Фільм обрано! 🍿', {
         body: `Сьогодні дивимось: ${movieTitle}`,
-        icon: '/icon192.png',
+        icon: 'icon192.png',
         vibrate: [200, 100, 200],
         tag: 'winner'
       });
@@ -164,12 +145,12 @@ function sendWinnerNotification(movieTitle) {
   }
 }
 
-// --- 4. ACTIONS ---
+// --- 4. ACTIONS (CRUD) ---
 async function addMovie(e) {
   e.preventDefault();
   const title = input.value.trim();
   if (!title) return;
-  const newMovie = { id: Date.now(), title, watched: false, createdAt: new Date().toISOString() };
+  const newMovie = { id: Date.now(), title, watched: false };
   await dbPromise.add(newMovie);
   input.value = '';
   refreshAppData();
@@ -182,7 +163,7 @@ async function toggleStatus(movie) {
 }
 
 async function deleteMovie(id) {
-  if (confirm('Remove this movie?')) {
+  if (confirm('Remove?')) {
     await dbPromise.delete(id);
     refreshAppData();
   }
@@ -195,47 +176,24 @@ async function clearHistory() {
   refreshAppData();
 }
 
-// --- 5. ROULETTE LOGIC ---
+// --- 5. ROULETTE ---
 async function startRoulette() {
-  const queue = await getPendingMovies();
-  if (queue.length === 0) {
-    displayRouletteMessage("QUEUE IS EMPTY", "Add movies first!");
-    return;
-  }
-  prepareRouletteUI();
-  runShuffleAnimation(queue);
-}
-
-async function getPendingMovies() {
   const movies = await dbPromise.getAll();
-  return movies.filter(m => !m.watched);
-}
+  const queue = movies.filter(m => !m.watched);
+  if (queue.length === 0) return;
 
-function prepareRouletteUI() {
   winnerActions.classList.add('hidden');
   spinBtn.disabled = true;
-  spinBtn.textContent = "CHOOSING...";
   rouletteDisplay.classList.add('shuffling');
-  rouletteText.style.color = "#e50914";
-}
 
-function displayRouletteMessage(main, sub) {
-  rouletteText.innerHTML = `${main}<br><small style='font-size: 1rem; opacity: 0.6;'>${sub}</small>`;
-  winnerActions.classList.add('hidden');
-  spinBtn.textContent = "SPIN THE WHEEL";
-}
-
-function runShuffleAnimation(queue) {
   let counter = 0;
   const interval = setInterval(() => {
-    const randomTemp = queue[Math.floor(Math.random() * queue.length)];
-    rouletteText.textContent = randomTemp.title;
-    counter++;
-    if (counter >= 20) {
+    rouletteText.textContent = queue[Math.floor(Math.random() * queue.length)].title;
+    if (++counter >= 20) {
       clearInterval(interval);
       const winner = queue[Math.floor(Math.random() * queue.length)];
       showWinner(winner);
-      sendWinnerNotification(winner.title); // <--- ПІДКЛЮЧЕНО: виклик сповіщення
+      sendWinnerNotification(winner.title);
     }
   }, 100);
 }
@@ -243,49 +201,26 @@ function runShuffleAnimation(queue) {
 function showWinner(movie) {
   rouletteDisplay.classList.remove('shuffling');
   spinBtn.disabled = false;
-  spinBtn.textContent = "SPIN AGAIN";
   rouletteText.textContent = "ENJOY!";
-  rouletteText.style.color = "#fff";
   currentWinnerId = movie.id;
   winnerTitle.textContent = movie.title;
   winnerActions.classList.remove('hidden');
 }
 
-// --- 6. SETUP ---
-function updateStats(movies) {
-  const total = movies.length;
-  const watched = movies.filter(m => m.watched).length;
-  document.getElementById('count-total').textContent = total;
-  document.getElementById('count-watched').textContent = watched;
-  document.getElementById('count-pending').textContent = total - watched;
-}
-
+// --- 6. HELPERS ---
 function setupEventListeners() {
-  form.addEventListener('submit', addMovie);
-  clearHistoryBtn.addEventListener('click', clearHistory);
-  spinBtn.addEventListener('click', startRoulette);
-  markWinnerBtn.addEventListener('click', handleMarkWinner);
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      if (e.target.getAttribute('data-target') === 'roulette') resetRouletteUI();
-    });
-  });
-}
-
-function resetRouletteUI() {
-  rouletteText.textContent = "Press Spin";
-  spinBtn.textContent = "SPIN THE WHEEL";
-  winnerActions.classList.add('hidden');
+  if (form) form.addEventListener('submit', addMovie);
+  if (clearHistoryBtn) clearHistoryBtn.addEventListener('click', clearHistory);
+  if (spinBtn) spinBtn.addEventListener('click', startRoulette);
+  if (markWinnerBtn) markWinnerBtn.addEventListener('click', handleMarkWinner);
 }
 
 async function handleMarkWinner() {
-  if (!currentWinnerId) return;
   const movies = await dbPromise.getAll();
   const movie = movies.find(m => m.id === currentWinnerId);
   if (movie) {
     await toggleStatus(movie);
     winnerActions.classList.add('hidden');
-    rouletteText.textContent = "WATCHED!";
   }
 }
 
@@ -297,31 +232,13 @@ function escapeHtml(text) {
 
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.error('SW failed', err));
+    navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
   }
 }
 
 async function checkStorageQuota() {
-  if ('storage' in navigator && 'estimate' in navigator.storage) {
+  if (navigator.storage && navigator.storage.estimate) {
     const { usage } = await navigator.storage.estimate();
-    console.log(`Used: ${(usage / (1024 * 1024)).toFixed(2)} MB`);
-  }
-}
-
-function sendWinnerNotification(movieTitle) {
-  console.log("Спроба надіслати сповіщення для:", movieTitle);
-
-  if (Notification.permission === 'granted') {
-    navigator.serviceWorker.ready.then(reg => {
-      console.log("Service Worker готовий, надсилаю пуш...");
-      reg.showNotification('Фільм на вечір обрано! 🍿', {
-        body: `Сьогодні дивимось: ${movieTitle}`,
-        icon: 'icon192.png', // переконайся, що шлях правильний
-        vibrate: [200, 100, 200],
-        tag: 'winner'
-      });
-    }).catch(err => console.error("SW не готовий:", err));
-  } else {
-    console.log("Дозвіл на сповіщення не надано. Статус:", Notification.permission);
+    console.log(`Used: ${(usage / 1024 / 1024).toFixed(2)} MB`);
   }
 }
