@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshAppData();
   registerServiceWorker();
   setupEventListeners();
+  restoreProfile();
 });
 
 // --- 1. НАТИВНА ФУНКЦІЯ: КАМЕРА (MediaDevices API) ---
@@ -14,6 +15,11 @@ async function startCamera() {
   const openBtn = document.getElementById('btn-open-camera');
   const takeBtn = document.getElementById('btn-take-photo');
   const preview = document.getElementById('photo-preview');
+
+  // Повернення кнопки Change Photo до початкового вигляду
+  openBtn.className = 'btn-primary';
+  openBtn.style.border = '';
+  openBtn.textContent = '📸 Change Photo';
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -47,8 +53,15 @@ function takePhoto() {
   }
 
   document.getElementById('btn-take-photo').style.display = 'none';
-  document.getElementById('btn-open-camera').style.display = 'inline-block';
-  document.getElementById('btn-open-camera').textContent = "Retake Photo";
+  const openBtn = document.getElementById('btn-open-camera');
+  openBtn.style.display = 'inline-block';
+  openBtn.textContent = 'Retake Photo';
+  openBtn.className = 'btn-ghost btn-ghost-red';
+
+  // Збереження фото для офлайн
+  try {
+    localStorage.setItem('userPhoto', preview.src);
+  } catch { /* quota exceeded */ }
 }
 
 // --- 2. НАТИВНА ФУНКЦІЯ: ГЕОЛОКАЦІЯ (Geolocation API) ---
@@ -82,6 +95,11 @@ function getLocationAndDisplay() {
       } catch { /* ignore */ }
 
       locationText.textContent = city ? `Watching from: ${city}` : `Coordinates: ${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+
+      // Збереження локації для офлайн
+      try {
+        localStorage.setItem('userLocation', JSON.stringify({ lat: latitude, lon: longitude, city }));
+      } catch { /* ignore */ }
 
       // Переходимо на Stats щоб карта коректно відобразилась
       document.querySelector('[data-target="stats"]')?.click();
@@ -119,6 +137,32 @@ function initMap(lat, lon, city) {
     .addTo(locationMapInstance)
     .bindPopup(popupText)
     .openPopup();
+}
+
+function restoreProfile() {
+  // Відновлення фото
+  const savedPhoto = localStorage.getItem('userPhoto');
+  const preview = document.getElementById('photo-preview');
+  if (savedPhoto && preview) {
+    preview.src = savedPhoto;
+  }
+
+  // Відновлення локації
+  const savedLoc = localStorage.getItem('userLocation');
+  if (savedLoc) {
+    try {
+      const { lat, lon, city } = JSON.parse(savedLoc);
+      const locationDisplay = document.getElementById('location-display');
+      const locationText = document.getElementById('location-text');
+      if (locationDisplay && locationText) {
+        locationDisplay.style.display = 'block';
+        locationText.textContent = city ? `Watching from: ${city}` : `Coordinates: ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
+        if (typeof L !== 'undefined') {
+          requestAnimationFrame(() => initMap(lat, lon, city));
+        }
+      }
+    } catch { /* invalid JSON */ }
+  }
 }
 
 async function reverseGeocode(lat, lon) {

@@ -51,6 +51,15 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Не перехоплювати CDN та зовнішні сервіси (CORS / opaque response)
+  if (
+    url.origin.includes('unpkg.com') ||
+    url.origin.includes('openstreetmap.org') ||
+    url.origin.includes('nominatim.openstreetmap.org')
+  ) {
+    return;
+  }
+
   //  Ignore non - GET requests(e.g., POST to the server)
   if (request.method !== 'GET') return;
 
