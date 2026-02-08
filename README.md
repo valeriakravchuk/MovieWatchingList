@@ -53,7 +53,16 @@ I implemented a **Decision Tree** based caching strategy within the Service Work
 - **Responsive Layout**: Mobile-first approach that adapts to desktop screens.
 
 ## How to Run
-1. Host the files on a server (HTTPS required for PWA) or (e.g., Lr use a local development serveive Server in VS Code).
+1. Host the files on a server (HTTPS required for PWA) or (e.g., Live Server in VS Code).
 2. Open the browser and navigate to the URL.
 3. Open DevTools -> Application -> Service Workers to see the worker active.
 4. Add movies and try the **Shuffle** feature to see the animations.
+
+## Як перевірити роботу офлайн (без інтернету)
+1. **Відкрийте застосунок онлайн** (localhost або HTTPS) і дочекайтесь повного завантаження.
+2. **Додайте кілька фільмів** — дані збережуться в IndexedDB.
+3. **DevTools → Application → Service Workers** — переконайтесь, що SW активний (status: activated).
+4. **DevTools → Network** — поставте **Offline** (або Throttling → Offline).
+5. **Оновіть сторінку** (F5) — застосунок має завантажитись із кешу.
+6. **Перевірте** — фільми відображаються, можна додавати нові, позначати переглянуті, крутити рулетку. IndexedDB працює локально.
+7. *Примітка:* карта геолокації потребує інтернету (тайли OpenStreetMap).

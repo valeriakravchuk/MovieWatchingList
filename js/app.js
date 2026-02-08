@@ -155,6 +155,12 @@ function setupEventListeners() {
   // Кнопка Enable Sensors — запитує геолокацію та показує карту в Stats
   document.getElementById('enable-native-btn').onclick = () => getLocationAndDisplay();
 
+  // Очистити історію переглянутих
+  document.getElementById('clear-history-btn').onclick = async () => {
+    await dbPromise.clearWatched();
+    refreshAppData();
+  };
+
   // Кнопки камери
   document.getElementById('btn-open-camera').onclick = startCamera;
   document.getElementById('btn-take-photo').onclick = takePhoto;

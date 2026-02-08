@@ -66,5 +66,13 @@ export const dbPromise = {
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     });
+  },
+
+  async clearWatched() {
+    const movies = await this.getAll();
+    const watched = movies.filter(m => m.watched);
+    for (const m of watched) {
+      await this.delete(m.id);
+    }
   }
 };
