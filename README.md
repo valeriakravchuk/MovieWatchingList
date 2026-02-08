@@ -4,19 +4,16 @@ A progressive web application (PWA) to manage a movie watchlist. Created with pu
 
 ## Native Device Functions (Kryterium: min. 2 natywne funkcje)
 
-Aplikacja wykorzystuje **5 natywnych funkcji urządzenia**:
+Aplikacja wykorzystuje **3 natywne funkcje urządzenia**:
 
 | # | API | Implementacja | Zastosowanie |
 |---|-----|---------------|--------------|
 | 1 | **MediaDevices API** (Kamera) | `navigator.mediaDevices.getUserMedia({ video: true })` | Zdjęcie profilowe w zakładce Stats („Change Photo” → stream wideo → canvas → zdjęcie) |
-| 2 | **Notifications API** | `Notification.requestPermission()`, `reg.showNotification()` | Powiadomienia push przy dodawaniu filmu i wygranej w ruletce (via Service Worker) |
-| 3 | **Geolocation API** | `navigator.geolocation.getCurrentPosition()` | Klik „Enable Sensors” → pobranie lokalizacji → wyświetlenie miasta/koordynat w Stats |
-| 4 | **Vibration API** | `navigator.vibrate([200, 100, 200])` | Feedback haptyczny przy dodawaniu filmu, ruletce i włączaniu sensorów |
-| 5 | **Web Speech API** | `SpeechSynthesisUtterance`, `speechSynthesis.speak()` | Głośne odczytanie tytułu wybranego filmu po „Spin the Wheel” |
+| 2 | **Geolocation API** | `navigator.geolocation.getCurrentPosition()` | Klik „Enable Sensors” → pobranie lokalizacji → mapa z markerem (Leaflet + OpenStreetMap) w Stats |
+| 3 | **Web Speech API** | `SpeechSynthesisUtterance`, `speechSynthesis.speak()` | Głośne odczytanie tytułu wybranego filmu po „Spin the Wheel” |
 
 **Opis implementacji:**
-- **Geolocation**: `getCurrentPosition()` z opcjami `enableHighAccuracy`, reverse geocoding (OpenStreetMap Nominatim) do nazwy miasta.
-- **Vibration**: wzorce `[100]`, `[150, 80, 150]`, `[200, 100, 200]` dla różnych akcji (krótka / długa wibracja).
+- **Geolocation**: `getCurrentPosition()` z opcjami `enableHighAccuracy`, reverse geocoding (Nominatim) do nazwy miasta, interaktywna mapa z markerem (biblioteka Leaflet).
 
 ## Features
 - **Add Movies**: Add titles to your "Queue" with an immersive dark-themed UI.

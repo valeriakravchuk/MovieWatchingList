@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshAppData();
   registerServiceWorker();
   setupEventListeners();
-  requestNotificationPermission();
 });
 
 // --- 1. НАТИВНА ФУНКЦІЯ: КАМЕРА (MediaDevices API) ---
@@ -52,59 +51,74 @@ function takePhoto() {
   document.getElementById('btn-open-camera').textContent = "Retake Photo";
 }
 
-// --- 2. НАТИВНА ФУНКЦІЯ: СПОВІЩЕННЯ (Notifications API) ---
-function requestNotificationPermission() {
-  if ('Notification' in window) {
-    Notification.requestPermission();
-  }
-}
+// --- 2. НАТИВНА ФУНКЦІЯ: ГЕОЛОКАЦІЯ (Geolocation API) ---
+let locationMapInstance = null;
 
-function sendPush(title, message) {
-  if (Notification.permission === 'granted') {
-    navigator.serviceWorker.ready.then(reg => {
-      reg.showNotification(title, {
-        body: message,
-        icon: 'icon192.png',
-        vibrate: [200, 100, 200]
-      });
-    });
-  }
-}
-
-// --- 3. НАТИВНА ФУНКЦІЯ: ГЕОЛОКАЦІЯ (Geolocation API) ---
 function getLocationAndDisplay() {
   if (!('geolocation' in navigator)) {
     const loc = document.getElementById('location-display');
     const txt = document.getElementById('location-text');
     if (loc && txt) {
-      loc.style.display = 'flex';
+      loc.style.display = 'block';
       txt.textContent = 'Geolocation not supported';
     }
     return;
   }
   const locationDisplay = document.getElementById('location-display');
   const locationText = document.getElementById('location-text');
-  if (!locationDisplay || !locationText) return;
+  const mapContainer = document.getElementById('location-map');
+  if (!locationDisplay || !locationText || !mapContainer) return;
 
-  locationDisplay.style.display = 'flex';
+  locationDisplay.style.display = 'block';
   locationText.textContent = 'Getting location...';
+  mapContainer.innerHTML = '';
 
   navigator.geolocation.getCurrentPosition(
     async (position) => {
       const { latitude, longitude } = position.coords;
-      const coords = `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+      let city = null;
       try {
-        const city = await reverseGeocode(latitude, longitude);
-        locationText.textContent = city ? `Watching from: ${city}` : `Coordinates: ${coords}`;
-      } catch {
-        locationText.textContent = `Coordinates: ${coords}`;
-      }
+        city = await reverseGeocode(latitude, longitude);
+      } catch { /* ignore */ }
+
+      locationText.textContent = city ? `Watching from: ${city}` : `Coordinates: ${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+
+      // Переходимо на Stats щоб карта коректно відобразилась
+      document.querySelector('[data-target="stats"]')?.click();
+
+      // Невелика затримка для рендеру контейнера
+      requestAnimationFrame(() => {
+        initMap(latitude, longitude, city);
+      });
     },
     (err) => {
       locationText.textContent = err.code === 1 ? 'Location access denied' : 'Could not get location';
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
   );
+}
+
+function initMap(lat, lon, city) {
+  if (typeof L === 'undefined') return;
+
+  if (locationMapInstance) {
+    locationMapInstance.remove();
+  }
+
+  const mapContainer = document.getElementById('location-map');
+  if (!mapContainer) return;
+
+  locationMapInstance = L.map('location-map').setView([lat, lon], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(locationMapInstance);
+
+  const popupText = city || `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
+  L.marker([lat, lon])
+    .addTo(locationMapInstance)
+    .bindPopup(popupText)
+    .openPopup();
 }
 
 async function reverseGeocode(lat, lon) {
@@ -114,14 +128,7 @@ async function reverseGeocode(lat, lon) {
   return data.address?.city || data.address?.town || data.address?.village || null;
 }
 
-// --- 4. НАТИВНА ФУНКЦІЯ: ВІБРАЦІЯ (Vibration API) ---
-function vibrate(pattern = [200, 100, 200]) {
-  if ('vibrate' in navigator) {
-    navigator.vibrate(pattern);
-  }
-}
-
-// --- 5. НАТИВНА ФУНКЦІЯ: СИНТЕЗ МОВЛЕННЯ (Web Speech API) ---
+// --- 3. НАТИВНА ФУНКЦІЯ: СИНТЕЗ МОВЛЕННЯ (Web Speech API) ---
 function speakText(text) {
   if ('speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
@@ -141,17 +148,12 @@ function setupEventListeners() {
     if (!input.value) return;
 
     await dbPromise.add({ id: Date.now(), title: input.value, watched: false });
-    vibrate([100]); // haptic feedback
-    sendPush("Success!", `Фільм "${input.value}" додано до черги.`);
     input.value = '';
     refreshAppData();
   };
 
-  // Кнопка Enable Sensors — запитує геолокацію та показує локацію в Stats
-  document.getElementById('enable-native-btn').onclick = () => {
-    getLocationAndDisplay();
-    vibrate([100]);
-  };
+  // Кнопка Enable Sensors — запитує геолокацію та показує карту в Stats
+  document.getElementById('enable-native-btn').onclick = () => getLocationAndDisplay();
 
   // Кнопки камери
   document.getElementById('btn-open-camera').onclick = startCamera;
@@ -166,8 +168,6 @@ function setupEventListeners() {
     const winner = queue[Math.floor(Math.random() * queue.length)];
     const textDisplay = document.getElementById('roulette-text');
 
-    vibrate([150, 80, 150]); // haptic feedback при натисканні
-
     // Перебирання фільмів (ефект рулетки)
     const shuffleInterval = setInterval(() => {
       const random = queue[Math.floor(Math.random() * queue.length)];
@@ -177,10 +177,6 @@ function setupEventListeners() {
     setTimeout(() => {
       clearInterval(shuffleInterval);
       textDisplay.textContent = winner.title;
-      vibrate([200, 100, 200]); // вібрація при виграші
-
-      // ВИКЛИК НАТИВНИХ ФУНКЦІЙ ПРИ ВИГРАШІ
-      sendPush("Winner Picked! 🍿", `Tonight's movie: ${winner.title}`);
       speakText(`Tonight we are watching ${winner.title}`);
     }, 1500);
   };
@@ -209,8 +205,6 @@ async function refreshAppData() {
     if (!movie.watched) {
       li.querySelector('.check-btn').onclick = async () => {
         await dbPromise.update({ ...movie, watched: true });
-        vibrate([100]);
-        sendPush('Watched!', `"${movie.title}" відмічено як переглянутий.`);
         refreshAppData();
       };
     }

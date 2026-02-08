@@ -300,16 +300,20 @@ input[type="text"]::placeholder {
   margin-top: 1rem;
 }
 
-/* Location Card (Geolocation) */
-.location-card {
+/* Location Section (Geolocation + Map) */
+.location-section {
   background: linear-gradient(135deg, #1f1f1f 0%, #2a1515 100%);
-  padding: 15px 20px;
   border-radius: 8px;
   margin-bottom: 20px;
+  overflow: hidden;
+  border-left: 4px solid var(--primary-red);
+}
+
+.location-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  border-left: 4px solid var(--primary-red);
+  padding: 15px 20px;
 }
 
 .location-icon {
@@ -319,6 +323,28 @@ input[type="text"]::placeholder {
 #location-text {
   font-size: 0.95rem;
   color: var(--secondary-text);
+}
+
+.location-map {
+  height: 220px;
+  width: 100%;
+  background: #1a1a1a;
+}
+
+.location-map .leaflet-container {
+  background: #1a1a1a;
+  font-family: var(--font-body);
+}
+
+.location-map .leaflet-popup-content-wrapper {
+  background: var(--card-bg);
+  color: var(--text-color);
+  border-radius: 6px;
+  border: 1px solid var(--primary-red);
+}
+
+.location-map .leaflet-popup-tip {
+  background: var(--card-bg);
 }
 
 /* Stats Cards */

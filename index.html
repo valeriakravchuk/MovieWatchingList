@@ -14,6 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@300;400;700&display=swap"
     rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 </head>
 
 <body>
@@ -85,9 +86,12 @@
             Snap</button>
         </div>
       </div>
-      <div id="location-display" class="location-card" style="display: none;">
-        <span class="location-icon">📍</span>
-        <span id="location-text">Getting location...</span>
+      <div id="location-display" class="location-section" style="display: none;">
+        <div class="location-header">
+          <span class="location-icon">📍</span>
+          <span id="location-text">Watching from: —</span>
+        </div>
+        <div id="location-map" class="location-map"></div>
       </div>
       <div class="stats-container">
         <div class="stat-card">
@@ -139,6 +143,7 @@
   </main>
 
   <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script type="module" src="js/app.js"></script>
 </body>
 
