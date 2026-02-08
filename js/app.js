@@ -307,3 +307,21 @@ async function checkStorageQuota() {
     console.log(`Used: ${(usage / (1024 * 1024)).toFixed(2)} MB`);
   }
 }
+
+function sendWinnerNotification(movieTitle) {
+  console.log("Спроба надіслати сповіщення для:", movieTitle);
+
+  if (Notification.permission === 'granted') {
+    navigator.serviceWorker.ready.then(reg => {
+      console.log("Service Worker готовий, надсилаю пуш...");
+      reg.showNotification('Фільм на вечір обрано! 🍿', {
+        body: `Сьогодні дивимось: ${movieTitle}`,
+        icon: 'icon192.png', // переконайся, що шлях правильний
+        vibrate: [200, 100, 200],
+        tag: 'winner'
+      });
+    }).catch(err => console.error("SW не готовий:", err));
+  } else {
+    console.log("Дозвіл на сповіщення не надано. Статус:", Notification.permission);
+  }
+}
