@@ -166,9 +166,16 @@ function setupEventListeners() {
     const winner = queue[Math.floor(Math.random() * queue.length)];
     const textDisplay = document.getElementById('roulette-text');
 
-    textDisplay.textContent = "Choosing...";
     vibrate([150, 80, 150]); // haptic feedback при натисканні
+
+    // Перебирання фільмів (ефект рулетки)
+    const shuffleInterval = setInterval(() => {
+      const random = queue[Math.floor(Math.random() * queue.length)];
+      textDisplay.textContent = random.title;
+    }, 100);
+
     setTimeout(() => {
+      clearInterval(shuffleInterval);
       textDisplay.textContent = winner.title;
       vibrate([200, 100, 200]); // вібрація при виграші
 
