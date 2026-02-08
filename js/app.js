@@ -1,244 +1,219 @@
 import { dbPromise } from './db.js';
 import { initRouter } from './router.js';
 
-// --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
   initRouter();
   refreshAppData();
   registerServiceWorker();
   setupEventListeners();
-  checkStorageQuota();
-  initNativeFeatures();
+  requestNotificationPermission();
 });
 
-// --- UI Elements ---
-const form = document.getElementById('add-form');
-const input = document.getElementById('movie-input');
-const queueList = document.getElementById('movie-list');
-const historyList = document.getElementById('history-list');
-const emptyState = document.getElementById('empty-state');
-const clearHistoryBtn = document.getElementById('clear-history-btn');
-const spinBtn = document.getElementById('spin-btn');
-const rouletteText = document.getElementById('roulette-text');
-const rouletteDisplay = document.getElementById('roulette-display');
-const winnerActions = document.getElementById('winner-actions');
-const winnerTitle = document.getElementById('winner-title');
-const markWinnerBtn = document.getElementById('mark-winner-watched');
-const enableNativeBtn = document.getElementById('enable-native-btn');
-let currentWinnerId = null;
+// --- 1. НАТИВНА ФУНКЦІЯ: КАМЕРА (MediaDevices API) ---
+async function startCamera() {
+  const video = document.getElementById('video-stream');
+  const openBtn = document.getElementById('btn-open-camera');
+  const takeBtn = document.getElementById('btn-take-photo');
+  const preview = document.getElementById('photo-preview');
 
-// --- 1. DATA FLOW FUNCTIONS ---
-async function refreshAppData() {
   try {
-    const movies = await dbPromise.getAll();
-    const sortedMovies = sortMoviesNewestFirst(movies);
-    renderAllLists(sortedMovies);
-    updateStats(sortedMovies);
-    handleEmptyState(sortedMovies);
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+    video.style.display = 'block';
+    preview.style.display = 'none';
+    openBtn.style.display = 'none';
+    takeBtn.style.display = 'inline-block';
   } catch (err) {
-    console.error('Data refresh failed:', err);
+    alert("Доступ до камери відхилено");
   }
 }
 
-function sortMoviesNewestFirst(movies) {
-  return [...movies].sort((a, b) => b.id - a.id);
+function takePhoto() {
+  const video = document.getElementById('video-stream');
+  const canvas = document.getElementById('photo-canvas');
+  const preview = document.getElementById('photo-preview');
+  const context = canvas.getContext('2d');
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  preview.src = canvas.toDataURL('image/png');
+  preview.style.display = 'block';
+  video.style.display = 'none';
+
+  // Зупиняємо камеру
+  video.srcObject.getTracks().forEach(track => track.stop());
+
+  document.getElementById('btn-take-photo').style.display = 'none';
+  document.getElementById('btn-open-camera').style.display = 'inline-block';
+  document.getElementById('btn-open-camera').textContent = "Retake Photo";
 }
 
-function handleEmptyState(movies) {
-  const hasPending = movies.some(m => !m.watched);
-  if (emptyState) {
-    hasPending ? emptyState.classList.add('hidden') : emptyState.classList.remove('hidden');
+// --- 2. НАТИВНА ФУНКЦІЯ: СПОВІЩЕННЯ (Notifications API) ---
+function requestNotificationPermission() {
+  if ('Notification' in window) {
+    Notification.requestPermission();
   }
 }
 
-function renderAllLists(movies) {
-  if (!queueList || !historyList) return;
-  queueList.innerHTML = '';
-  historyList.innerHTML = '';
-  movies.forEach(movie => {
-    const li = createMovieElement(movie);
-    const targetList = movie.watched ? historyList : queueList;
-    targetList.appendChild(li);
-  });
-}
-
-// --- 2. MOVIE ITEM CONSTRUCTION ---
-function createMovieElement(movie) {
-  const li = document.createElement('li');
-  li.className = `movie-item ${movie.watched ? 'watched' : ''}`;
-  li.innerHTML = `
-    <div class="movie-content">
-        <div class="check-btn ${movie.watched ? 'checked' : ''}">${movie.watched ? '✔' : ''}</div>
-        <div>
-            <div class="movie-text">${escapeHtml(movie.title)}</div>
-            <small class="movie-date">${new Date(movie.id).toLocaleDateString()}</small>
-        </div>
-    </div>
-    <div class="movie-btns">
-        <button class="share-btn" title="Share">✈</button>
-        <button class="delete-btn">✖</button>
-    </div>
-  `;
-  attachMovieActions(li, movie);
-  return li;
-}
-
-function attachMovieActions(li, movie) {
-  li.querySelector('.check-btn').addEventListener('click', () => toggleStatus(movie));
-  li.querySelector('.delete-btn').addEventListener('click', () => deleteMovie(movie.id));
-  li.querySelector('.share-btn').addEventListener('click', () => shareMovie(movie.title));
-}
-
-// --- 3. NATIVE FUNCTIONS ---
-
-async function shareMovie(title) {
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: 'Watchlist',
-        text: `Раджу подивитись: "${title}"`,
-        url: window.location.href
-      });
-    } catch (err) { console.log('Share error', err); }
-  } else { alert("Share not supported"); }
-}
-
-function initNativeFeatures() {
-  if (!enableNativeBtn) return;
-  enableNativeBtn.addEventListener('click', async () => {
-    try {
-      if ('Notification' in window) await Notification.requestPermission();
-      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-        await DeviceMotionEvent.requestPermission();
-      }
-      window.addEventListener('devicemotion', handleShake);
-    } catch (e) { console.log("Sensors init error", e); }
-    enableNativeBtn.style.display = 'none';
-  });
-}
-
-function handleShake(event) {
-  const acc = event.accelerationIncludingGravity;
-  if (!acc) return;
-  const delta = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
-  if (delta > 15) {
-    const now = Date.now();
-    if (now - lastShakeTime > 2000) {
-      lastShakeTime = now;
-      const rView = document.getElementById('roulette');
-      if (rView && !rView.classList.contains('hidden-view')) startRoulette();
-    }
-  }
-}
-let lastShakeTime = 0;
-
-function sendWinnerNotification(movieTitle) {
+function sendPush(title, message) {
   if (Notification.permission === 'granted') {
     navigator.serviceWorker.ready.then(reg => {
-      reg.showNotification('Фільм обрано! 🍿', {
-        body: `Сьогодні дивимось: ${movieTitle}`,
+      reg.showNotification(title, {
+        body: message,
         icon: 'icon192.png',
-        vibrate: [200, 100, 200],
-        tag: 'winner'
+        vibrate: [200, 100, 200]
       });
     });
   }
 }
 
-// --- 4. ACTIONS (CRUD) ---
-async function addMovie(e) {
-  e.preventDefault();
-  const title = input.value.trim();
-  if (!title) return;
-  const newMovie = { id: Date.now(), title, watched: false };
-  await dbPromise.add(newMovie);
-  input.value = '';
-  refreshAppData();
-}
-
-async function toggleStatus(movie) {
-  movie.watched = !movie.watched;
-  await dbPromise.update(movie);
-  refreshAppData();
-}
-
-async function deleteMovie(id) {
-  if (confirm('Remove?')) {
-    await dbPromise.delete(id);
-    refreshAppData();
-  }
-}
-
-async function clearHistory() {
-  const movies = await dbPromise.getAll();
-  const watched = movies.filter(m => m.watched);
-  await Promise.all(watched.map(m => dbPromise.delete(m.id)));
-  refreshAppData();
-}
-
-// --- 5. ROULETTE ---
-async function startRoulette() {
-  const movies = await dbPromise.getAll();
-  const queue = movies.filter(m => !m.watched);
-  if (queue.length === 0) return;
-
-  winnerActions.classList.add('hidden');
-  spinBtn.disabled = true;
-  rouletteDisplay.classList.add('shuffling');
-
-  let counter = 0;
-  const interval = setInterval(() => {
-    rouletteText.textContent = queue[Math.floor(Math.random() * queue.length)].title;
-    if (++counter >= 20) {
-      clearInterval(interval);
-      const winner = queue[Math.floor(Math.random() * queue.length)];
-      showWinner(winner);
-      sendWinnerNotification(winner.title);
+// --- 3. НАТИВНА ФУНКЦІЯ: ГЕОЛОКАЦІЯ (Geolocation API) ---
+function getLocationAndDisplay() {
+  if (!('geolocation' in navigator)) {
+    const loc = document.getElementById('location-display');
+    const txt = document.getElementById('location-text');
+    if (loc && txt) {
+      loc.style.display = 'flex';
+      txt.textContent = 'Geolocation not supported';
     }
-  }, 100);
+    return;
+  }
+  const locationDisplay = document.getElementById('location-display');
+  const locationText = document.getElementById('location-text');
+  if (!locationDisplay || !locationText) return;
+
+  locationDisplay.style.display = 'flex';
+  locationText.textContent = 'Getting location...';
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const { latitude, longitude } = position.coords;
+      const coords = `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+      try {
+        const city = await reverseGeocode(latitude, longitude);
+        locationText.textContent = city ? `Watching from: ${city}` : `Coordinates: ${coords}`;
+      } catch {
+        locationText.textContent = `Coordinates: ${coords}`;
+      }
+    },
+    (err) => {
+      locationText.textContent = err.code === 1 ? 'Location access denied' : 'Could not get location';
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+  );
 }
 
-function showWinner(movie) {
-  rouletteDisplay.classList.remove('shuffling');
-  spinBtn.disabled = false;
-  rouletteText.textContent = "ENJOY!";
-  currentWinnerId = movie.id;
-  winnerTitle.textContent = movie.title;
-  winnerActions.classList.remove('hidden');
+async function reverseGeocode(lat, lon) {
+  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
+  const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+  const data = await res.json();
+  return data.address?.city || data.address?.town || data.address?.village || null;
 }
 
-// --- 6. HELPERS ---
-function setupEventListeners() {
-  if (form) form.addEventListener('submit', addMovie);
-  if (clearHistoryBtn) clearHistoryBtn.addEventListener('click', clearHistory);
-  if (spinBtn) spinBtn.addEventListener('click', startRoulette);
-  if (markWinnerBtn) markWinnerBtn.addEventListener('click', handleMarkWinner);
-}
-
-async function handleMarkWinner() {
-  const movies = await dbPromise.getAll();
-  const movie = movies.find(m => m.id === currentWinnerId);
-  if (movie) {
-    await toggleStatus(movie);
-    winnerActions.classList.add('hidden');
+// --- 4. НАТИВНА ФУНКЦІЯ: ВІБРАЦІЯ (Vibration API) ---
+function vibrate(pattern = [200, 100, 200]) {
+  if ('vibrate' in navigator) {
+    navigator.vibrate(pattern);
   }
 }
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+// --- 5. НАТИВНА ФУНКЦІЯ: СИНТЕЗ МОВЛЕННЯ (Web Speech API) ---
+function speakText(text) {
+  if ('speechSynthesis' in window) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US'; // Можна змінити на 'uk-UA', якщо фільми українською
+    utterance.rate = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+}
+
+// --- ОСНОВНА ЛОГІКА ПРОГРАМИ ---
+
+function setupEventListeners() {
+  // Додавання фільму
+  document.getElementById('add-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('movie-input');
+    if (!input.value) return;
+
+    await dbPromise.add({ id: Date.now(), title: input.value, watched: false });
+    vibrate([100]); // haptic feedback
+    sendPush("Success!", `Фільм "${input.value}" додано до черги.`);
+    input.value = '';
+    refreshAppData();
+  };
+
+  // Кнопка Enable Sensors — запитує геолокацію та показує локацію в Stats
+  document.getElementById('enable-native-btn').onclick = () => {
+    getLocationAndDisplay();
+    vibrate([100]);
+  };
+
+  // Кнопки камери
+  document.getElementById('btn-open-camera').onclick = startCamera;
+  document.getElementById('btn-take-photo').onclick = takePhoto;
+
+  // Рулетка
+  document.getElementById('spin-btn').onclick = async () => {
+    const movies = await dbPromise.getAll();
+    const queue = movies.filter(m => !m.watched);
+    if (queue.length === 0) return;
+
+    const winner = queue[Math.floor(Math.random() * queue.length)];
+    const textDisplay = document.getElementById('roulette-text');
+
+    textDisplay.textContent = "Choosing...";
+    vibrate([150, 80, 150]); // haptic feedback при натисканні
+    setTimeout(() => {
+      textDisplay.textContent = winner.title;
+      vibrate([200, 100, 200]); // вібрація при виграші
+
+      // ВИКЛИК НАТИВНИХ ФУНКЦІЙ ПРИ ВИГРАШІ
+      sendPush("Winner Picked! 🍿", `Tonight's movie: ${winner.title}`);
+      speakText(`Tonight we are watching ${winner.title}`);
+    }, 1500);
+  };
+}
+
+async function refreshAppData() {
+  const movies = await dbPromise.getAll();
+  const list = document.getElementById('movie-list');
+  const watchedList = document.getElementById('history-list');
+  if (!list || !watchedList) return;
+
+  list.innerHTML = '';
+  watchedList.innerHTML = '';
+
+  movies.sort((a, b) => b.id - a.id).forEach(movie => {
+    const li = document.createElement('li');
+    li.className = 'movie-item';
+    li.innerHTML = `
+      <div class="movie-content">
+        <span class="movie-text">${movie.title}</span>
+      </div>
+      <button class="delete-btn">✖</button>
+    `;
+
+    li.querySelector('.delete-btn').onclick = async () => {
+      await dbPromise.delete(movie.id);
+      refreshAppData();
+    };
+
+    movie.watched ? watchedList.appendChild(li) : list.appendChild(li);
+  });
+  updateStats(movies);
+}
+
+function updateStats(movies) {
+  document.getElementById('count-total').textContent = movies.length;
+  document.getElementById('count-watched').textContent = movies.filter(m => m.watched).length;
+  document.getElementById('count-pending').textContent = movies.filter(m => !m.watched).length;
 }
 
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.error(err));
-  }
-}
-
-async function checkStorageQuota() {
-  if (navigator.storage && navigator.storage.estimate) {
-    const { usage } = await navigator.storage.estimate();
-    console.log(`Used: ${(usage / 1024 / 1024).toFixed(2)} MB`);
+    navigator.serviceWorker.register('./sw.js');
   }
 }

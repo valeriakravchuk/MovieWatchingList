@@ -47,10 +47,9 @@
           <!-- Movies will be injected here -->
         </ul>
         <div id="empty-state" class="hidden">
-          <div id="empty-state" class="hidden">
-            <div style="font-size: 3rem; margin-bottom: 10px;">🍿</div>
-            Your queue is empty.<br>Add some movies to watch tonight!
-          </div>
+          <div style="font-size: 3rem; margin-bottom: 10px;">🍿</div>
+          Your queue is empty.<br>Add some movies to watch tonight!
+        </div>
     </section>
 
     <!-- VIEW 2: History (Watched Movies) -->
@@ -69,7 +68,26 @@
 
     <!-- VIEW 3: Stats -->
     <section id="stats" class="view hidden-view">
-      <h2>Statistics</h2>
+      <h2>Viewer Profile</h2>
+      <div class="camera-box" style="text-align: center; margin-bottom: 20px;">
+        <div id="profile-container">
+          <img id="photo-preview" src="https://via.placeholder.com/150"
+            style="width: 150px; height: 150px; border-radius: 50%; border: 3px solid #e50914; object-fit: cover;">
+        </div>
+        <video id="video-stream" autoplay
+          style="display: none; width: 100%; max-width: 300px; border-radius: 10px; margin: 10px auto;"></video>
+        <canvas id="photo-canvas" style="display: none;"></canvas>
+
+        <div style="margin-top: 10px;">
+          <button id="btn-open-camera" class="btn-primary">📸 Change Photo</button>
+          <button id="btn-take-photo" class="btn-ghost" style="display: none; border: 1px solid #e50914;">Take
+            Snap</button>
+        </div>
+      </div>
+      <div id="location-display" class="location-card" style="display: none;">
+        <span class="location-icon">📍</span>
+        <span id="location-text">Getting location...</span>
+      </div>
       <div class="stats-container">
         <div class="stat-card">
           <span class="stat-number" id="count-total">0</span>

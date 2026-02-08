@@ -300,6 +300,27 @@ input[type="text"]::placeholder {
   margin-top: 1rem;
 }
 
+/* Location Card (Geolocation) */
+.location-card {
+  background: linear-gradient(135deg, #1f1f1f 0%, #2a1515 100%);
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-left: 4px solid var(--primary-red);
+}
+
+.location-icon {
+  font-size: 1.5rem;
+}
+
+#location-text {
+  font-size: 0.95rem;
+  color: var(--secondary-text);
+}
+
 /* Stats Cards */
 .stats-container {
   display: flex;
