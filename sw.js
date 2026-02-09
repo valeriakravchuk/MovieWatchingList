@@ -16,6 +16,9 @@ const APP_ASSETS = [
   'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@300;400;700&display=swap'
 ];
 
+const MAP_TILES_CACHE = `netflix-maps-${CACHE_VERSION}`;
+
+
 // --- 1. INSTALL ---
 self.addEventListener('install', event => {
   console.log('[SW] Installing...');
@@ -54,15 +57,12 @@ self.addEventListener('fetch', (event) => {
   // Не перехоплювати CDN та зовнішні сервіси (CORS / opaque response)
   if (
     url.origin.includes('unpkg.com') ||
-    url.origin.includes('openstreetmap.org') ||
     url.origin.includes('nominatim.openstreetmap.org')
   ) {
     return;
   }
-
   //  Ignore non - GET requests(e.g., POST to the server)
   if (request.method !== 'GET') return;
-
   // 2. Google Fonts & CSS/JS -> Cache First (Static)
   if (
     url.origin.includes('fonts.googleapis.com') ||
@@ -73,6 +73,26 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(cacheFirst(request, CACHE_NAMES.static));
     return;
   }
+  // OpenStreetMap tiles -> Cache First (offline maps)
+  if (url.origin.includes('tile.openstreetmap.org')) {
+    event.respondWith(
+      caches.open(MAP_TILES_CACHE).then(cache =>
+        cache.match(request).then(cached => {
+          return (
+            cached ||
+            fetch(request)
+              .then(response => {
+                cache.put(request, response.clone());
+                return response;
+              })
+              .catch(() => cached)
+          );
+        })
+      )
+    );
+    return;
+  }
+
 
   // 3. Images -> Stale While Revalidate
   if (request.destination === 'image') {
