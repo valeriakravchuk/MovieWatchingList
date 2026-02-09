@@ -9,14 +9,14 @@ document.addEventListener('DOMContentLoaded', () => {
   restoreProfile();
 });
 
-// --- 1. НАТИВНА ФУНКЦІЯ: КАМЕРА (MediaDevices API) ---
+// --- 1. FUNKCJA NATYWNA: KAMERA (MediaDevices API) ---
 async function startCamera() {
   const video = document.getElementById('video-stream');
   const openBtn = document.getElementById('btn-open-camera');
   const takeBtn = document.getElementById('btn-take-photo');
   const preview = document.getElementById('photo-preview');
 
-  // Повернення кнопки Change Photo до початкового вигляду
+  // Przywrócenie przycisku Change Photo do stanu początkowego
   openBtn.className = 'btn-primary';
   openBtn.style.border = '';
   openBtn.textContent = '📸 Change Photo';
@@ -29,7 +29,7 @@ async function startCamera() {
     openBtn.style.display = 'none';
     takeBtn.style.display = 'inline-block';
   } catch (err) {
-    alert("Доступ до камери відхилено");
+    alert("Odmówiono dostępu do kamery");
   }
 }
 
@@ -47,7 +47,7 @@ function takePhoto() {
   preview.style.display = 'block';
   video.style.display = 'none';
 
-  // Зупиняємо камеру (перевірка на null)
+  // Zatrzymanie kamery (sprawdzenie null)
   if (video.srcObject) {
     video.srcObject.getTracks().forEach(track => track.stop());
   }
@@ -58,13 +58,13 @@ function takePhoto() {
   openBtn.textContent = 'Retake Photo';
   openBtn.className = 'btn-ghost btn-ghost-red';
 
-  // Збереження фото для офлайн
+  // Zapis zdjęcia do trybu offline
   try {
     localStorage.setItem('userPhoto', preview.src);
-  } catch { /* quota exceeded */ }
+  } catch { /* przekroczony limit */ }
 }
 
-// --- 2. НАТИВНА ФУНКЦІЯ: ГЕОЛОКАЦІЯ (Geolocation API) ---
+// --- 2. FUNKCJA NATYWNA: GEOLOKALIZACJA (Geolocation API) ---
 let locationMapInstance = null;
 
 function getLocationAndDisplay() {
@@ -73,7 +73,7 @@ function getLocationAndDisplay() {
     const txt = document.getElementById('location-text');
     if (loc && txt) {
       loc.style.display = 'block';
-      txt.textContent = 'Geolocation not supported';
+      txt.textContent = 'Geolokalizacja nie jest obsługiwana';
     }
     return;
   }
@@ -83,7 +83,7 @@ function getLocationAndDisplay() {
   if (!locationDisplay || !locationText || !mapContainer) return;
 
   locationDisplay.style.display = 'block';
-  locationText.textContent = 'Getting location...';
+  locationText.textContent = 'Pobieranie lokalizacji...';
   mapContainer.innerHTML = '';
 
   navigator.geolocation.getCurrentPosition(
@@ -92,25 +92,28 @@ function getLocationAndDisplay() {
       let city = null;
       try {
         city = await reverseGeocode(latitude, longitude);
-      } catch { /* ignore */ }
+      } catch { /* ignoruj */ }
 
-      locationText.textContent = city ? `Watching from: ${city}` : `Coordinates: ${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+      locationText.textContent = city
+        ? `Watching from: ${city}`
+        : `Coordinates: ${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
 
-      // Збереження локації для офлайн
+      // Zapis lokalizacji do trybu offline
       try {
         localStorage.setItem('userLocation', JSON.stringify({ lat: latitude, lon: longitude, city }));
-      } catch { /* ignore */ }
+      } catch { /* ignoruj */ }
 
-      // Переходимо на Stats щоб карта коректно відобразилась
+      // Przejście do zakładki Stats, aby mapa poprawnie się wyświetliła
       document.querySelector('[data-target="stats"]')?.click();
 
-      // Невелика затримка для рендеру контейнера
+      // Małe opóźnienie dla renderowania kontenera
       requestAnimationFrame(() => {
         initMap(latitude, longitude, city);
       });
     },
     (err) => {
-      locationText.textContent = err.code === 1 ? 'Location access denied' : 'Could not get location';
+      locationText.textContent =
+        err.code === 1 ? 'Odmówiono dostępu do lokalizacji' : 'Nie udało się pobrać lokalizacji';
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
   );
@@ -140,14 +143,14 @@ function initMap(lat, lon, city) {
 }
 
 function restoreProfile() {
-  // Відновлення фото
+  // Przywracanie zdjęcia
   const savedPhoto = localStorage.getItem('userPhoto');
   const preview = document.getElementById('photo-preview');
   if (savedPhoto && preview) {
     preview.src = savedPhoto;
   }
 
-  // Відновлення локації
+  // Przywracanie lokalizacji
   const savedLoc = localStorage.getItem('userLocation');
   if (savedLoc) {
     try {
@@ -156,12 +159,14 @@ function restoreProfile() {
       const locationText = document.getElementById('location-text');
       if (locationDisplay && locationText) {
         locationDisplay.style.display = 'block';
-        locationText.textContent = city ? `Watching from: ${city}` : `Coordinates: ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
+        locationText.textContent = city
+          ? `Watching from: ${city}`
+          : `Coordinates: ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`;
         if (typeof L !== 'undefined') {
           requestAnimationFrame(() => initMap(lat, lon, city));
         }
       }
-    } catch { /* invalid JSON */ }
+    } catch { /* nieprawidłowy JSON */ }
   }
 }
 
@@ -172,20 +177,20 @@ async function reverseGeocode(lat, lon) {
   return data.address?.city || data.address?.town || data.address?.village || null;
 }
 
-// --- 3. НАТИВНА ФУНКЦІЯ: СИНТЕЗ МОВЛЕННЯ (Web Speech API) ---
+// --- 3. FUNKCJA NATYWNA: SYNTEZA MOWY (Web Speech API) ---
 function speakText(text) {
   if ('speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US'; // Можна змінити на 'uk-UA', якщо фільми українською
+    utterance.lang = 'en-US';
     utterance.rate = 1;
     window.speechSynthesis.speak(utterance);
   }
 }
 
-// --- ОСНОВНА ЛОГІКА ПРОГРАМИ ---
+// --- GŁÓWNA LOGIKA APLIKACJI ---
 
 function setupEventListeners() {
-  // Додавання фільму
+  // Dodawanie filmu
   document.getElementById('add-form').onsubmit = async (e) => {
     e.preventDefault();
     const input = document.getElementById('movie-input');
@@ -196,20 +201,20 @@ function setupEventListeners() {
     refreshAppData();
   };
 
-  // Кнопка Enable Sensors — запитує геолокацію та показує карту в Stats
+  // Przycisk Enable Sensors — pobiera lokalizację i pokazuje mapę w Stats
   document.getElementById('enable-native-btn').onclick = () => getLocationAndDisplay();
 
-  // Очистити історію переглянутих
+  // Czyszczenie historii obejrzanych
   document.getElementById('clear-history-btn').onclick = async () => {
     await dbPromise.clearWatched();
     refreshAppData();
   };
 
-  // Кнопки камери
+  // Przyciski kamery
   document.getElementById('btn-open-camera').onclick = startCamera;
   document.getElementById('btn-take-photo').onclick = takePhoto;
 
-  // Рулетка
+  // Ruletka
   document.getElementById('spin-btn').onclick = async () => {
     const movies = await dbPromise.getAll();
     const queue = movies.filter(m => !m.watched);
@@ -218,7 +223,7 @@ function setupEventListeners() {
     const winner = queue[Math.floor(Math.random() * queue.length)];
     const textDisplay = document.getElementById('roulette-text');
 
-    // Перебирання фільмів (ефект рулетки)
+    // Przeglądanie filmów (efekt ruletki)
     const shuffleInterval = setInterval(() => {
       const random = queue[Math.floor(Math.random() * queue.length)];
       textDisplay.textContent = random.title;

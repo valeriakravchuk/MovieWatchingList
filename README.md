@@ -1,68 +1,101 @@
 # Netflix Style Watchlist PWA
 
-A progressive web application (PWA) to manage a movie watchlist. Created with pure JavaScript (Vanilla JS), CSS3, and HTML5.
+A Progressive Web Application (PWA) for managing a movie watchlist. Built using pure JavaScript (Vanilla JS), CSS3, and HTML5.
 
-## Native Device Functions (Kryterium: min. 2 natywne funkcje)
+---
 
-Aplikacja wykorzystuje **3 natywne funkcje urządzenia**:
+## Native Device Functions  
+**Requirement: minimum 2 native device functions**
 
-| # | API | Implementacja | Zastosowanie |
-|---|-----|---------------|--------------|
-| 1 | **MediaDevices API** (Kamera) | `navigator.mediaDevices.getUserMedia({ video: true })` | Zdjęcie profilowe w zakładce Stats („Change Photo” → stream wideo → canvas → zdjęcie) |
-| 2 | **Geolocation API** | `navigator.geolocation.getCurrentPosition()` | Klik „Enable Sensors” → pobranie lokalizacji → mapa z markerem (Leaflet + OpenStreetMap) w Stats |
-| 3 | **Web Speech API** | `SpeechSynthesisUtterance`, `speechSynthesis.speak()` | Głośne odczytanie tytułu wybranego filmu po „Spin the Wheel” |
+The application uses **3 native device APIs**:
 
-**Opis implementacji:**
-- **Geolocation**: `getCurrentPosition()` z opcjami `enableHighAccuracy`, reverse geocoding (Nominatim) do nazwy miasta, interaktywna mapa z markerem (biblioteka Leaflet).
+| # | API | Implementation | Usage |
+|---|-----|----------------|-------|
+| 1 | **MediaDevices API** (Camera) | `navigator.mediaDevices.getUserMedia({ video: true })` | Profile photo in the *Stats* tab (“Change Photo” → video stream → canvas → photo) |
+| 2 | **Geolocation API** | `navigator.geolocation.getCurrentPosition()` | Click **Enable Sensors** → fetch location → map with marker (Leaflet + OpenStreetMap) in *Stats* |
+| 3 | **Web Speech API** | `SpeechSynthesisUtterance`, `speechSynthesis.speak()` | Spoken announcement of the selected movie title after **Spin the Wheel** |
+
+### Implementation Details
+- **Geolocation** uses `getCurrentPosition()` with `enableHighAccuracy`
+- Reverse geocoding via **Nominatim** to retrieve the city name
+- Interactive map rendered using **Leaflet** with **OpenStreetMap** tiles
+
+---
 
 ## Features
-- **Add Movies**: Add titles to your "Queue" with an immersive dark-themed UI.
-- **Track Status**: Mark movies as watched (moves to "History").
-- **Movie Roulette (Shuffle)**: An interactive "Spin the Wheel" feature to randomly pick a movie from your queue. Includes neon visual effects and animations.
-- **Statistics**: Visual dashboard showing total, watched, and pending movies.
-- **Persistence**: All data is stored in **IndexedDB** (Storage API) for robust offline data management.
-- **PWA Capable**: Works offline via Service Worker caching and is installable on mobile/desktop.
-- **Routing**: 4 distinct views (Queue, History, Stats, Shuffle) with smooth transitions.
+- **Add Movies** – Add titles to your *Queue* using an immersive dark-themed UI
+- **Track Status** – Mark movies as watched (automatically moved to *History*)
+- **Movie Roulette (Shuffle)** – Interactive **Spin the Wheel** feature to randomly select a movie  
+  Includes neon effects and animations
+- **Statistics Dashboard** – Displays total, watched, and pending movies
+- **Persistence** – All data stored in **IndexedDB** for reliable offline usage
+- **PWA Support** – Fully offline-capable via Service Worker and installable on mobile/desktop
+- **Routing** – 4 distinct views: *Queue*, *History*, *Stats*, *Shuffle*
+
+---
 
 ## Technologies
-- **HTML5**: Semantic structure.
-- **CSS3**: Flexbox, Grid, CSS Variables, Keyframe Animations, Glassmorphism effects, Neon Glows.
-- **JavaScript (ES6+)**: Async/Await, Modules, DOM Manipulation.
-- **IndexedDB**: For persistent local storage (No LocalStorage used).
-- **Service Worker**: Manual implementation for caching App Shell.
-- **Google Fonts**: Bebas Neue & Roboto for cinematic typography.
+- **HTML5** – Semantic structure
+- **CSS3** – Flexbox, Grid, CSS Variables, Keyframe Animations, Glassmorphism, Neon Glows
+- **JavaScript (ES6+)** – Async/Await, Modules, DOM Manipulation
+- **IndexedDB** – Persistent local storage (LocalStorage not used)
+- **Service Worker** – Manual App Shell caching
+- **Google Fonts** – Bebas Neue & Roboto (cinematic typography)
+
+---
 
 ## Caching Strategies & Justification
-I implemented a **Decision Tree** based caching strategy within the Service Worker manually (no libraries), as demonstrated in class lectures.
 
-1.  **Static Assets (CSS, JS, Fonts) -> `Cache First`**
-    *   *Why:* These files define the app's look and logic. They rarely change. Loading them from cache ensures the app opens instantly (Performance metric).
-    
-2.  **HTML Documents -> `Network First`**
-    *   *Why:* We always want the user to see the latest version of the app structure. If they are offline, we fall back to the cached version.
+A **Decision Tree–based caching strategy** was manually implemented inside the Service Worker (no external libraries), as demonstrated during class lectures.
 
-3.  **Images -> `Stale-While-Revalidate`**
-    *   *Why:* Images are non-critical but heavy. We show the cached version immediately (fast LCP), but update it in the background if it changed on the server.
+### 1. Static Assets → `Cache First`
+**Files:** CSS, JS, Fonts  
+**Why:**  
+These assets define the app’s appearance and logic and rarely change. Loading them from cache ensures instant startup and better performance.
 
-4.  **Storage Management**
-    *   Implemented `navigator.storage.estimate()` to monitor quota usage on the user's device.
+### 2. HTML Documents → `Network First`
+**Why:**  
+Users should always receive the most recent version of the app. When offline, the cached HTML is used as a fallback.
+
+### 3. Images → `Stale-While-Revalidate`
+**Why:**  
+Images are heavy but non-critical. Cached images are shown immediately (fast LCP), while updated versions are fetched in the background if available.
+
+### 4. Storage Management
+- Uses `navigator.storage.estimate()` to monitor storage quota usage on the user’s device
+
+---
 
 ## Design Decisions
-- **Netflix-Inspired Theme**: Dark background (`#141414`) with strong red accents (`#E50914`).
-- **Micro-interactions**: Hover effects on movie cards, "spring" animations for checkboxes, and pulse effects for buttons.
-- **Responsive Layout**: Mobile-first approach that adapts to desktop screens.
+- **Netflix-Inspired Theme** – Dark background (`#141414`) with red accents (`#E50914`)
+- **Micro-interactions** – Hover effects, spring animations, pulse effects on buttons
+- **Responsive Design** – Mobile-first layout that scales smoothly to desktop screens
 
-## How to Run
-1. Host the files on a server (HTTPS required for PWA) or (e.g., Live Server in VS Code).
-2. Open the browser and navigate to the URL.
-3. Open DevTools -> Application -> Service Workers to see the worker active.
-4. Add movies and try the **Shuffle** feature to see the animations.
+---
 
-## Як перевірити роботу офлайн (без інтернету)
-1. **Відкрийте застосунок онлайн** (localhost або HTTPS) і дочекайтесь повного завантаження.
-2. **Додайте кілька фільмів** — дані збережуться в IndexedDB.
-3. **DevTools → Application → Service Workers** — переконайтесь, що SW активний (status: activated).
-4. **DevTools → Network** — поставте **Offline** (або Throttling → Offline).
-5. **Оновіть сторінку** (F5) — застосунок має завантажитись із кешу.
-6. **Перевірте** — фільми відображаються, можна додавати нові, позначати переглянуті, крутити рулетку. IndexedDB працює локально.
-7. *Примітка:* карта геолокації потребує інтернету (тайли OpenStreetMap).
+## How to Run the Project
+1. Host the files on a server (**HTTPS required for PWA**), e.g. using **Live Server** in VS Code
+2. Open the browser and navigate to the app URL
+3. Open **DevTools → Application → Service Workers** to verify the worker is active
+4. Add movies and try the **Shuffle** feature to see animations
+
+---
+
+## How to Test Offline Functionality
+1. Open the application **online** (localhost or HTTPS) and wait for full load
+2. Add several movies — data is stored in **IndexedDB**
+3. Open **DevTools → Application → Service Workers**  
+   Ensure status is **activated**
+4. Open **DevTools → Network** → enable **Offline**
+5. Refresh the page (F5) — the app should load from cache
+6. Verify:
+   - Movies are displayed
+   - New movies can be added
+   - Movies can be marked as watched
+   - Roulette still works
+7. **Note:** The geolocation map requires an internet connection (OpenStreetMap tiles)
+
+---
+
+## Author
+Netflix Style Watchlist PWA — academic project demonstrating PWA, native device APIs, offline caching strategies, and modern frontend architecture.
